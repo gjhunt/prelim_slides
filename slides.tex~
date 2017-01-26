@@ -1,0 +1,570 @@
+\documentclass{beamer}
+
+\usepackage{tikz}
+\usepackage[percent]{overpic}
+\usetikzlibrary{calc,trees,positioning,arrows,fit,shapes,calc}
+\usepackage{verbatim}
+\usepackage{stmaryrd}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{color}
+\usepackage[percent]{overpic}
+
+\definecolor{fgreen}{RGB}{34,139,34}
+
+\usetheme{Berlin}
+\title{A New Approach to Sample Deconvolution}
+\author{Greg Hunt}
+\institute{University of Michigan}
+\date{December 9, 2016}
+
+\beamertemplatenavigationsymbolsempty
+\addtobeamertemplate{navigation symbols}{}{%
+    \usebeamerfont{footline}%
+    \usebeamercolor[fg]{footline}%
+    \hspace{1em}%
+    \insertframenumber/\inserttotalframenumber
+}
+
+\begin{document}
+
+\section{Introduction}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}
+  \frametitle{Signal Convolution}
+  \begin{center}
+  \includegraphics[scale=.3]{sigconv.pdf}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Microarray Convolution}
+  \begin{center}
+      \includegraphics[scale=.25]{slide_conv.pdf}
+  \end{center}
+
+  {\tiny Image Credits: [1,2]}
+\end{frame}
+
+\section{Scientific Background}
+
+\begin{frame}
+  \frametitle{The Central Dogma of Genetics}
+  \begin{columns}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[scale=.35]{ribo.jpg}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      Every time a gene is expressed an mRNA specific to that gene is created. 
+    \end{column}
+  \end{columns}
+      {\tiny Image Credits: [4]}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Using the Extracted DNA}
+  \begin{columns}
+    \begin{column}{0.48\textwidth}
+      \begin{enumerate}
+      \item[(1)] We can extract mRNA from a cell sample in an an aqueous solution.
+      \end{enumerate}
+      \begin{center}
+        \includegraphics[scale=.2]{extracteddna.jpg}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{enumerate}
+        \item[(2)] Goal: determine what mRNA is present in sample using microarray. 
+      \end{enumerate}
+      \begin{center}
+        \includegraphics[scale=.55]{mascale.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+
+  {\tiny Image Credits: [5,6]}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{DNA Microarray}
+  \begin{columns}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[scale=.15]{mazoom.jpg}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{enumerate}
+        \item We call an oligonucleotide an {\color{blue} oligo}
+        \item Each of the spots on microarray have nucleic acids complementary to specific oligo.
+        \item We can tell which oligos are present by looking at which probes have mRNA bound to them.
+        \end{enumerate}
+    \end{column}
+  \end{columns}
+
+  {\tiny Image Credits: [7]}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Microarray Fluorescence}
+  \begin{columns}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[scale=.4]{fluor.png}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      Fluorescence of each probe tells us how much of that type of mRNA is present. 
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Microarray Data}
+  Each microarray produces intensity measurements $I_1,\ldots,I_N$ where $N\approx 500,000$ and $I_n \in (0,\infty)$.
+  {\small \begin{center}
+    \begin{tabular}{c||c|c|c|c|c}
+      Probe Name& 1367452\_at& 1367453\_at& 1367454\_at& 1367455\_at& $\cdots$\\\hline
+      Intensity& 84&       5063&        140&       5065&        $\cdots$
+    \end{tabular}
+  \end{center}}
+
+  A common data pre-processing step is to {\color{blue}logarithmically} tranform. 
+\end{frame}
+
+\section{Literature}
+
+\begin{frame}
+  \frametitle{}
+  \begin{center}
+  {\color{blue}{\Huge
+    Literature Review
+  }}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{A Common Model}
+  Consider running microarray experiments on {\color{blue}$S$} samples where 
+  \begin{enumerate}
+  \item Each sample is a mix of {\color{blue}$K$} cell types.
+  \item Measurements of {\color{blue}$N$} oligos in each sample. 
+  \end{enumerate}
+
+  The Model:
+  \[
+  \underbrace{\begin{bmatrix}
+    \quad& & \quad\\
+    \quad& \text{{\Huge X}}_{S\times N}& \\
+    \quad& & \quad
+    \end{bmatrix}}_{
+      \text{data matrix}
+  }
+  =
+    \underbrace{\begin{bmatrix}
+    \quad& & \quad\\
+    \quad& \text{{\Huge M}}_{S\times K}& \\
+    \quad& & \quad
+    \end{bmatrix}}_{
+      \text{mixing matrix}
+  }
+  \underbrace{\begin{bmatrix}
+    \quad& & \quad\\
+    \quad& \text{{\Huge U}}_{K\times N}& \\
+    \quad& & \quad
+    \end{bmatrix}}_{
+      \text{characteristic expressions}
+  }
+  +
+  E
+  \]
+  for an error matrix $E$.
+  %\begin{enumerate}
+  %\item Data matrix $X\in\mathbb{R}^{S \times N}$ where $X_{sn}$ is $n^{th}$ oligo expression in $s^{th}$ sample
+  %\item Mixing matrix $M \in\mathbb{R}^{S \times K}$ where $M_{sk}$ is percent of $s^{th}$ sample that is type $k$
+  %\item Characteristic expression profiles $U \in\mathbb{R}^{K \times N}$ so that $U_{kn}$ is typical expression of $n^{th}$ oligo in type $k$
+  %\end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Types of Deconvolution}
+  We always know $X$ and model it as
+  \[
+  X = MU+E
+  \]
+  We may not know $U$ or $M$.\newline
+  
+Two types of deconvolution:\newline
+  {\color{blue}{\bf Partial Deconvolution}}
+  \begin{enumerate}
+  \item[1] Know $U$ and predict $M$
+  \item[2] Know $M$ and predict $U$
+  \end{enumerate}
+  
+  {\color{blue}{\bf Full Deconvolution}}
+  \begin{enumerate}
+  \item[3] Know neither $M$ nor $U$ and predict jointly
+  \end{enumerate}
+
+  \begin{center}
+    {\Large {\color{blue}We are interested in predicting $M$ given $U$.}}\newline Consider problem 1.
+    \end{center}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Known $U$ and predict $M$}
+  \begin{block}{Problem}
+    Assume known $X$, $U$,
+    \[
+    X = MU + E
+    \]
+    and solve for $M$.
+
+    {\bf Constraint:} $M$ must be a row-wise probability matrix. 
+  \end{block}
+
+  {\bf Solutions:}
+  \begin{enumerate}
+  \item {\color{blue}Regression}: regress $X$ on $U$ so that elements of $M$ are regression coefficients. Somehow enforce constraints.
+  \item {\color{blue}Bayesian}: Similar to LDA. Estimate as MAP. 
+  \end{enumerate}
+
+  \begin{center}
+    {\Large {\bf Idea:} {\color{blue} marker oligos}.}
+    \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Marker Oligos are Oligos Expressed in Only One Cell Type}
+
+  {\color{blue}Empirically models have better fit if restricted to marker oligos.\newline}
+
+  {\bf Idea:} Find marker oligos for each cell type. Restrict analyis to marker oligos only.
+    \begin{enumerate}
+    \item Can be as simple as fitting using submatrices.
+    \item Many different ways to select markers. Usually chosen by looking at {\color{blue} pure samples}. 
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pure Samples}
+  Most methods require a pure sample of each of the $K$ cell types. 
+
+  \begin{enumerate}
+    \item Used to find markers.
+    \item Can give us $U$.
+    \item Effectively training data. 
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Variations}
+  Model:
+  \[
+  X = MU+E
+  \]
+  
+  Ways to solve this partial deconvolution problem differ by
+  \begin{enumerate}
+  \item Fitting methods.
+  \item Marker oligo choices.
+  \item Construction of $U$
+  \item {\color{blue}{\bf Transformations:}} e.g. do a logarithmic transformation.
+  \item {\color{blue}{\bf Summarizations:}} summarize probes into genes using RMA or MAS5. 
+  \end{enumerate}
+  
+\end{frame}
+
+\section{Our Method}
+
+\begin{frame}
+  \frametitle{}
+  \begin{center}
+  {\color{blue}{\Huge
+      New Methodology
+  }}
+  \end{center}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Simple Example}
+
+  Assume we have two cell types and three samples.
+  \begin{enumerate}
+  \item Sample {\color{blue}$A$} is a pure sample of type one.
+  \item Sample {\color{blue}$B$} is a pure sample of type two.
+  \item Sample {\color{blue}$C$} is a a mixture of types one and two. 
+  \end{enumerate}\vspace{.25cm}
+
+Define:
+{\Large  \[
+\eta_{{\color{blue}A}{\color{red}n}} = \text{concentration of oligo {\color{red}n} in sample {\color{blue}$A$}}
+\]}
+
+Similarly for $\eta_{{\color{blue}B}{\color{red}n}}$ and $\eta_{{\color{blue}C}{\color{red}n}}$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{A Linear Model}
+  {\Large {\color{blue}$Y_{An}$} $=$ {\bf log}(expression of oligo $n$ in sample $A$.)}\newline
+
+  Similarly define {\color{blue}$Y_{Bn}$} and {\color{blue}$Y_{Cn}$}.\vspace{.25cm}
+
+  Assume the linear relationship between {\color{red} concentration} and {\color{blue} expression}
+  \[
+  \begin{aligned}
+    {\color{blue} Y_{An}} &= \theta_n + \gamma\log_2\left({\color{red}\eta_{An}}\right)+\epsilon_{An}\\
+    {\color{blue} Y_{Bn}} &= \theta_n + \gamma\log_2\left({\color{red}\eta_{Bn}}\right)+\epsilon_{Bn}\\
+    {\color{blue} Y_{Cn}} &= \theta_n + \gamma\log_2\left({\color{red}\eta_{Cn}}\right)+\epsilon_{Cn}
+  \end{aligned}
+  \]
+  for all $n=1,\ldots,N$. Where the $\epsilon$ are i.i.d with mean zero and constant variance. 
+\end{frame}
+\begin{frame}
+  \frametitle{Concentration Expression Relationship}
+  Remember the linear model: {\color{blue}$Y_n = \theta_n+\gamma\log_2\left(\eta_n\right)+\epsilon$}
+  \begin{figure}
+    \begin{overpic}[width=0.5\textwidth,tics=10]{plot1}
+      \put (-10,50) {\color{blue} \large$Y_n$}
+      \put (50,-5) {\color{blue} \large$\log_2\eta_n$}
+\end{overpic}
+    \caption{Relationship between concentration and expression.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  Remember the linear model: {\color{blue}$Y_n = \theta_n+\gamma\log_2\left(\eta_n\right)+\epsilon$}
+  \frametitle{Concentration Expression Relationship}
+  \begin{figure}
+        \begin{overpic}[width=0.5\textwidth,tics=10]{plot2}
+      \put (-10,50) {\color{blue} \large$Y_n$}
+      \put (50,-5) {\color{blue} \large$\log_2\eta_n$}
+\end{overpic}
+    \caption{Relationship between concentration and expression.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  Remember the linear model: {\color{blue}$Y_n = \theta_n+\gamma\log_2\left(\eta_n\right)+\epsilon$}
+  \frametitle{Concentration Expression Relationship}
+  \begin{figure}
+        \begin{overpic}[width=0.5\textwidth,tics=10]{plot3}
+      \put (-10,50) {\color{blue} \large$Y_n$}
+      \put (50,-5) {\color{blue} \large$\log_2\eta_n$}
+\end{overpic}
+    \caption{Relationship between concentration and expression.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Mixing Assumption}
+
+  Since sample $C$ is a mixture of cell types then
+  \[
+  \eta_{Cn}=p_1\eta_{An}+p_2\eta_{Bn}
+  \]
+  for some mixing proportions $p_1,p_2\geq 0$ so that $p_1+p_2=1$. Thus
+  \[
+  \begin{aligned}
+    Y_{Cn} &= \theta_n + \gamma\log_2\left(\eta_{Cn}\right)+\epsilon_{Cn}\\
+    &= \theta_{n} + \gamma\log_2\left(p_1\eta_{An}+p_2\eta_{Bn}\right)+\epsilon_{Cn}.
+  \end{aligned}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Marker Oligos}
+  For any oligo $n$ we know that
+  \[
+  Y_{Cn} = \theta_{n} + \gamma\log_2\left(p_1\eta_{An}+p_2\eta_{Bn}\right)+\epsilon_{Cn}.
+  \]
+  Let $n_1$ be a marker oligo for cell type one and $n_2$ a marker oligo for cell type two. Then
+  \[
+  \eta_{An_2}=0\text{ and }\eta_{Bn_1}= 0.
+  \]
+  Hence
+  \[
+  Y_{Cn_1} = \theta_{n_1} + \gamma\log_2\left(p_1\eta_{An_1}\right)+\epsilon_{Cn_1}
+  \]
+  and
+  \[
+  Y_{Cn_2} = \theta_{n_2} + \gamma\log_2\left(p_2\eta_{An_2}\right)+\epsilon_{Cn_2}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Isolating $p_1$}
+  These marker oligos allow us to isolate the mixing proportions since
+  \[
+  \begin{aligned}
+    Y_{Cn_1} -Y_{An_1} &= \theta_{n_1} + \gamma\log_2\left(p_1\eta_{An_1}\right)+\epsilon_{Cn_1}\\
+    &-\left(\theta_{n_1} + \gamma\log_2\left(\eta_{An_1}\right)+\epsilon_{An_1}\right)\\
+    &= \gamma \log_2\left(p_1\right)+\epsilon_{Cn_1}-\epsilon_{An_1}
+  \end{aligned}
+  \]
+  hence
+{\color{blue}  \[
+\exp_2\left(\frac{Y_{Cn_1} -Y_{An_1}}{\gamma}\right) = \lambda_{1}p_1
+\]}
+where $\lambda_{1} = \exp_2\left(\frac{\epsilon_{Cn_1}-\epsilon_{An_1}}{\gamma}\right)$ is some error term. We can do something similar for $p_2$. 
+\end{frame}
+
+\begin{frame}
+  \frametitle{Estimators}
+  Since
+  \[
+\exp_2\left(\frac{Y_{Cn_1} -Y_{An_1}}{\gamma}\right) = \lambda_{1}p_1
+\]
+if we can estimate $\gamma$ with some $\widehat{\gamma}$ then we can define the estimator
+{\color{blue}$$
+\widehat{q_1} = \exp_2\left(\frac{Y_{Cn_1} -Y_{An_1}}{\widehat{\gamma}}\right)
+$$}
+hoping that since $\widehat{\gamma}\approx \gamma$ then $\widehat{q_1} \approx \lambda_1p_1$. Similarly define an estimator $\widehat{q_2}$.\vspace{.25cm}
+\end{frame}
+
+\begin{frame}
+\frametitle{Final Estimators}
+No guarantee that ${\color{blue} \widehat{q_1},\widehat{q_2}\leq 1}$ nor ${\color{blue}\widehat{q_1}+\widehat{q_2}=1}$ hence we re-normalize these and define the estimator
+$$
+\begin{aligned}
+  \widehat{p_1}&=\frac{\widehat{q_1}}{\widehat{q_1}+\widehat{q_2}}\\
+  &= logistic^{-1}\left(\frac{(Y_{Cn_1}-Y_{cn_2}) - (Y_{An_1}-Y_{Bn_2})}{\widehat{\gamma}}\right)
+  \end{aligned}
+$$
+of $p_1$ and similarly an estimator $\widehat{p_2}$ of $p_2$. 
+\end{frame}
+
+\begin{frame}
+  \frametitle{Full Model}
+Assumptions:
+  \begin{enumerate}
+  \item $K$ cell types
+  \item For $k=1,\ldots,K$ we have $\nu_k$ pure samples of type $k$
+  \item $\log$-level microarray data for each pure sample
+  \[
+Z_{kr} \in \mathbb{R}^{1\times N}
+\]
+for $r=1,\ldots,\nu_k$.
+\item Set of marker oligos $G_k$ for each cell type where $\Gamma_k = |G_k|$
+  \item We have a heterogeneous mixutre of the $K$ cell types with mixing proportions $p_1,\ldots,p_K$
+\item $Y_n$ is the $\log$-level expression measurement of the $n^{th}$ oligo in a heterogeneous sample
+\end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Estimators}
+  For the simple case we had
+  \[
+\widehat{q_1} = \exp_2\left(\frac{Y_{Cn_1} -Y_{An_1}}{\widehat{\gamma}}\right)
+  \]
+  Generally define
+  \[
+\widehat{q_k} = \exp_2\left(\frac{\frac{1}{\Gamma_k}\sum_{n\in G_k} \left(Y_n - \overline{Z_{kn}}\right)}{\widehat{\gamma}}\right)\approx \lambda_kp_k
+\]
+for $k=1,\ldots,K$ and
+\[
+\widehat{p_k}=\frac{\widehat{q_k}}{\sum_{t=1}^{K}\widehat{q_t}}
+\]
+as our estimator of $p_k$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Estimating $\gamma$}
+  Estimate $\gamma$ from benchmark data sets. 
+    \begin{figure}
+        \begin{overpic}[width=0.5\textwidth,tics=10]{plot3}
+      \put (-10,50) {\color{blue} \large$Y_n$}
+      \put (50,-5) {\color{blue} \large$\log_2\eta_n$}
+\end{overpic}
+    \caption{Relationship between concentration and expression.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Choosing Markers}
+  We can choose marker oligos by looking at pure samples. Determine which oligos are highly expressed in some cell types but not others. 
+\end{frame}
+
+\begin{frame}
+  \frametitle{Contrast with the Literature}
+  \begin{enumerate}
+  \item Our method uses a model
+    \[
+Y_n = \theta_n + \gamma \log_2\left(\eta_n\right)
+\]
+where most in the literature assume direct equivalence,
+\[
+Y_n = \log_2\left(\eta_n\right)
+\]
+\item Our model deals with the parameters in a unique manner while everyone else uses either (1) regression or (2) bayesian.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{}
+  \begin{center}
+  {\color{blue}{\Huge
+      Data Analysis
+  }}
+  \end{center}
+\end{frame}
+
+\section{Analysis}
+
+\begin{frame}
+  \frametitle{GSE19830}
+  Data set from Shen-Orr et al. (2010).
+  \begin{enumerate}
+  \item Affymetrix Rat Genome 230 2.0 DNA microarray
+  \item Mixtures of brain, liver and lung cells
+  \item 14 different mixing proportions
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{GSE11058}
+  Data set from Abbas et al. (2009)
+  \begin{enumerate}
+  \item HG-U133 Plus 2 Affymetrix Human Genome DNA
+microarray
+  \item Mixtures of white blood cell types (Jurkat, IM-9, Raji and THP-1)
+  \end{enumerate}
+\end{frame}
+
+
+\section{Conclusion}
+
+\begin{frame}
+  \frametitle{Future Work}
+  \begin{enumerate}
+  \item Determine pre-processing normalization. Use negative-controls and apply RUV. 
+  \item Refining how we estimate $\gamma$
+  \item Estimate how many marker genes are appropriate. 
+  \item Refine how we chose marker genes and use negative controls to account for unwanted variation.
+  \item Estimate proportion of sample that isn't one of $K$ cell types.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \begin{enumerate}
+    \item \url{https://www.wpclipart.com/science/tools/petri_dish.png.html}
+    \item \url{http://www.ditabis.com/resources/images/OEM/Biochip\%20rechts.PNG}
+    \item \url{https://en.wikipedia.org/wiki/White_blood_cell\#/media/File:SEM_blood_cells.jpg}
+    \item \url{https://sites.duke.edu/apep/module-2-the-abcs-of-intoxication/biology-and-chemistry-connections/dna-transcription-translation-synthesis-of-proteins/}
+    \item \url{http://www.bbc.co.uk/news/special/sci_environment/11/forensics/slideshows/html/img/4_cells.jpg}
+    \item \url{http://ipo.lbl.gov/wp-content/uploads/sites/8/2014/08/22291.png}
+    \item \url{http://learn.genetics.utah.edu/content/labs/microarray/images/WhatIsMicroarray1.jpg}
+ \end{enumerate}
+\end{frame}
+
+\end{document}
